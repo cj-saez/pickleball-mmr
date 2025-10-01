@@ -678,10 +678,10 @@
   apiKey: "AIzaSyCUmUFSoQ84QRFYfTFXbbQwgmPnxDKhziI",
   authDomain: "pickleball-mmr.firebaseapp.com",
   projectId: "pickleball-mmr",
-  storageBucket: "pickleball-mmr.appspot.com",   // 👈 FIXED (was .firebasestorage.app)
+  storageBucket: "pickleball-mmr.appspot.com", 
   messagingSenderId: "967956134535",
   appId: "1:967956134535:web:d06507eef0774372fc5622",
-  databaseURL: "https://pickleball-mmr-default-rtdb.firebaseio.com" // 👈 ADDED
+  databaseURL: "https://pickleball-mmr-default-rtdb.firebaseio.com" 
 };
 
         
@@ -970,7 +970,7 @@
             
             const now = new Date().toISOString();
             
-            // Update winners
+            
             winners.forEach(p => {
                 players[p].elo += change;
                 players[p].wins++;
@@ -988,6 +988,7 @@
                     players[p].singlesWins++;
                     players[p].singlesMatches++;
                 }
+                updateUI();
             });
             
             // Update losers
