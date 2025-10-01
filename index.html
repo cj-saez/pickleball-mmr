@@ -744,6 +744,18 @@
         }
     });
 }
+    
+    database.ref('trashTalk').on('value', snapshot => {
+        trashTalk = [];
+        if (snapshot.exists()) {
+            snapshot.forEach(child => {
+                trashTalk.push(child.val());
+            });
+            trashTalk.sort((a, b) => new Date(b.date) - new Date(a.date));
+            updateTrashTalk();
+        }
+    });
+}
 }
         
         function toggleDarkMode() {
