@@ -1,13 +1,12 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pickleball MMR System</title>
-  	
-     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <title>Pickleball Club MMR System</title>
+  	<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 
 
@@ -678,10 +677,10 @@
   apiKey: "AIzaSyCUmUFSoQ84QRFYfTFXbbQwgmPnxDKhziI",
   authDomain: "pickleball-mmr.firebaseapp.com",
   projectId: "pickleball-mmr",
-  storageBucket: "pickleball-mmr.appspot.com", 
+  storageBucket: "pickleball-mmr.appspot.com",   // 👈 FIXED (was .firebasestorage.app)
   messagingSenderId: "967956134535",
   appId: "1:967956134535:web:d06507eef0774372fc5622",
-  databaseURL: "https://pickleball-mmr-default-rtdb.firebaseio.com" 
+  databaseURL: "https://pickleball-mmr-default-rtdb.firebaseio.com" // 👈 ADDED
 };
 
         
@@ -960,36 +959,70 @@
             }
         }
         
-        function recordMatch(winners, losers, score, isDoubles) {
-            const winnerElo = winners.reduce((sum, p) => sum + players[p].elo, 0) / winners.length;
-            const loserElo = losers.reduce((sum, p) => sum + players[p].elo, 0) / losers.length;
-            const avgMatches = winners.reduce((sum, p) => sum + players[p].matches, 0) / winners.length;
-            const avgStreak = winners.reduce((sum, p) => sum + players[p].streak, 0) / winners.length;
-            
-            const change = calculateRatingChange(winnerElo, loserElo, avgMatches, isDoubles, avgStreak, score);
-            
-            const now = new Date().toISOString();
-            
-            
-            winners.forEach(p => {
-                players[p].elo += change;
-                players[p].wins++;
-                players[p].matches++;
-                players[p].streak++;
-                players[p].lastActive = now;
-                players[p].history.push({date: now, elo: players[p].elo});
-                players[p].recentForm.push('W');
-                if (players[p].recentForm.length > 10) players[p].recentForm.shift();
-                
-                if (isDoubles) {
-                    players[p].doublesWins++;
-                    players[p].doublesMatches++;
-                } else {
-                    players[p].singlesWins++;
-                    players[p].singlesMatches++;
-                }
-                updateUI();
-            });
+        ffunction recordMatch(winners, losers, score, isDoubles) {
+    const winnerElo = winners.reduce((sum, p) => sum + players[p].elo, 0) / winners.length;
+    const loserElo = losers.reduce((sum, p) => sum + players[p].elo, 0) / losers.length;
+    const avgMatches = winners.reduce((sum, p) => sum + players[p].matches, 0) / winners.length;
+    const avgStreak = winners.reduce((sum, p) => sum + players[p].streak, 0) / winners.length;
+
+    const change = calculateRatingChange(winnerElo, loserElo, avgMatches, isDoubles, avgStreak, score);
+    const now = new Date().toISOString();
+
+    // Update winners
+    winners.forEach(p => {
+        players[p].elo += change;
+        players[p].wins++;
+        players[p].matches++;
+        players[p].streak++;
+        players[p].lastActive = now;
+        players[p].history.push({ date: now, elo: players[p].elo });
+        players[p].recentForm.push('W');
+        if (players[p].recentForm.length > 10) players[p].recentForm.shift();
+
+        if (isDoubles) {
+            players[p].doublesWins++;
+            players[p].doublesMatches++;
+        } else {
+            players[p].singlesWins++;
+            players[p].singlesMatches++;
+        }
+    });
+
+    // Update losers
+    losers.forEach(p => {
+        players[p].elo = Math.max(0, players[p].elo - change);
+        players[p].losses++;
+        players[p].matches++;
+        players[p].streak = 0;
+        players[p].lastActive = now;
+        players[p].history.push({ date: now, elo: players[p].elo });
+        players[p].recentForm.push('L');
+        if (players[p].recentForm.length > 10) players[p].recentForm.shift();
+
+        if (isDoubles) {
+            players[p].doublesMatches++;
+        } else {
+            players[p].singlesMatches++;
+        }
+    });
+
+    // Save players and match
+    database.ref('players').set(players);
+    const newMatch = {
+        date: now,
+        winners: winners.map(p => players[p].name),
+        losers: losers.map(p => players[p].name),
+        score: score,
+        eloChange: change,
+        type: isDoubles ? 'Doubles' : 'Singles'
+    };
+    database.ref('matches').push(newMatch);
+
+    // Only call UI update once
+    updateUI();
+}
+
+
             
             // Update losers
             losers.forEach(p => {
@@ -1023,6 +1056,13 @@
             };
             
             database.ref('matches').push(newMatch);
+
+	winners.forEach(p => {
+   	 players[p].elo += change;
+  	  // ...
+   	 updateUI();
+});
+
         }
         
         function updateUI() {
@@ -1255,5 +1295,4 @@
     </script>
 </body>
 </html>
-
 
