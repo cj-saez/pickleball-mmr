@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pickleball MMR System</title>
+    <title>Pickleball Club MMR System</title>
   	
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -710,7 +710,7 @@
         }
         
         // Load data from Firebase
-       function loadData() {
+       unction loadData() {
     document.getElementById('statusBadge').textContent = '✅ Connected';
     document.getElementById('statusBadge').style.background = '#28a745';
     
@@ -732,18 +732,6 @@
             updateUI();
         }
     });
-    
-    database.ref('trashTalk').on('value', snapshot => {
-        trashTalk = [];
-        if (snapshot.exists()) {
-            snapshot.forEach(child => {
-                trashTalk.push(child.val());
-            });
-            trashTalk.sort((a, b) => new Date(b.date) - new Date(a.date));
-            updateTrashTalk();
-        }
-    });
-}
     
     database.ref('trashTalk').on('value', snapshot => {
         trashTalk = [];
@@ -1262,4 +1250,5 @@
     </script>
 </body>
 </html>
+
 
