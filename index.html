@@ -961,68 +961,35 @@
         }
         
         function recordMatch(winners, losers, score, isDoubles) {
-    const winnerElo = winners.reduce((sum, p) => sum + players[p].elo, 0) / winners.length;
-    const loserElo = losers.reduce((sum, p) => sum + players[p].elo, 0) / losers.length;
-    const avgMatches = winners.reduce((sum, p) => sum + players[p].matches, 0) / winners.length;
-    const avgStreak = winners.reduce((sum, p) => sum + players[p].streak, 0) / winners.length;
-
-    const change = calculateRatingChange(winnerElo, loserElo, avgMatches, isDoubles, avgStreak, score);
-    const now = new Date().toISOString();
-
-    // Update winners
-    winners.forEach(p => {
-        players[p].elo += change;
-        players[p].wins++;
-        players[p].matches++;
-        players[p].streak++;
-        players[p].lastActive = now;
-        players[p].history.push({ date: now, elo: players[p].elo });
-        players[p].recentForm.push('W');
-        if (players[p].recentForm.length > 10) players[p].recentForm.shift();
-
-        if (isDoubles) {
-            players[p].doublesWins++;
-            players[p].doublesMatches++;
-        } else {
-            players[p].singlesWins++;
-            players[p].singlesMatches++;
-        }
-    });
-
-    // Update losers
-    losers.forEach(p => {
-        players[p].elo = Math.max(0, players[p].elo - change);
-        players[p].losses++;
-        players[p].matches++;
-        players[p].streak = 0;
-        players[p].lastActive = now;
-        players[p].history.push({ date: now, elo: players[p].elo });
-        players[p].recentForm.push('L');
-        if (players[p].recentForm.length > 10) players[p].recentForm.shift();
-
-        if (isDoubles) {
-            players[p].doublesMatches++;
-        } else {
-            players[p].singlesMatches++;
-        }
-    });
-
-    // Save players and match
-    database.ref('players').set(players);
-    const newMatch = {
-        date: now,
-        winners: winners.map(p => players[p].name),
-        losers: losers.map(p => players[p].name),
-        score: score,
-        eloChange: change,
-        type: isDoubles ? 'Doubles' : 'Singles'
-    };
-    database.ref('matches').push(newMatch);
-
-    // Only call UI update once
-    updateUI();
-}
-
+            const winnerElo = winners.reduce((sum, p) => sum + players[p].elo, 0) / winners.length;
+            const loserElo = losers.reduce((sum, p) => sum + players[p].elo, 0) / losers.length;
+            const avgMatches = winners.reduce((sum, p) => sum + players[p].matches, 0) / winners.length;
+            const avgStreak = winners.reduce((sum, p) => sum + players[p].streak, 0) / winners.length;
+            
+            const change = calculateRatingChange(winnerElo, loserElo, avgMatches, isDoubles, avgStreak, score);
+            
+            const now = new Date().toISOString();
+            
+            
+            winners.forEach(p => {
+                players[p].elo += change;
+                players[p].wins++;
+                players[p].matches++;
+                players[p].streak++;
+                players[p].lastActive = now;
+                players[p].history.push({date: now, elo: players[p].elo});
+                players[p].recentForm.push('W');
+                if (players[p].recentForm.length > 10) players[p].recentForm.shift();
+                
+                if (isDoubles) {
+                    players[p].doublesWins++;
+                    players[p].doublesMatches++;
+                } else {
+                    players[p].singlesWins++;
+                    players[p].singlesMatches++;
+                }
+                updateUI();
+            });
             
             // Update losers
             losers.forEach(p => {
