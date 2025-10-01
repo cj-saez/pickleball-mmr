@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pickleball Club MMR System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .card h2 {
+            margin-bottom: 20px;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            transition: transform 0.2s;
+        }
+        
+        .leaderboard-item:hover {
+            transform: translateX(5px);
+        }
+        
+        .rank {
+            font-size: 24px;
+            font-weight: bold;
+            margin-right: 20px;
+            color: #667eea;
+            min-width: 40px;
+        }
+        
+        .player-info {
+            flex-grow: 1;
+        }
+        
+        .player-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .player-stats {
+            font-size: 12px;
+            color: #666;
+            margin-top: 3px;
+        }
+        
+        .elo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #764ba2;
+        }
+        
+        .match-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .winner {
+            color: #28a745;
+            font-weight: 600;
+        }
+        
+        .loser {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
+        .match-history {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .streak-badge {
+            background: #ffc107;
+            color: #333;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .export-buttons button {
+            flex: 1;
+        }
+        
+        .formula-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border-left: 4px solid #764ba2;
+        }
+        
+        @media (max-width: 968px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏓 Pickleball Club MMR System</h1>
+        
+        <div class="grid">
+            <div class="card">
+                <h2>Record Match</h2>
+                <form id="matchForm">
+                    <div class="form-group">
+                        <label>Match Type</label>
+                        <select id="matchType" required>
+                            <option value="singles">Singles (1v1)</option>
+                            <option value="doubles">Doubles (2v2)</option>
+                        </select>
+                    </div>
+                    
+                    <div id="singlesInputs">
+                        <div class="form-group">
+                            <label>Winner</label>
+                            <select id="winner1" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Loser</label>
+                            <select id="loser1" required></select>
+                        </div>
+                    </div>
+                    
+                    <div id="doublesInputs" style="display: none;">
+                        <div class="form-group">
+                            <label>Winning Team - Player 1</label>
+                            <select id="winTeam1" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Winning Team - Player 2</label>
+                            <select id="winTeam2" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Losing Team - Player 1</label>
+                            <select id="loseTeam1" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Losing Team - Player 2</label>
+                            <select id="loseTeam2" required></select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Score (e.g., 11-9)</label>
+                        <input type="text" id="score" placeholder="11-9" required>
+                    </div>
+                    
+                    <button type="submit">Record Match</button>
+                </form>
+                
+                <div class="formula-card">
+                    <strong>ELO Formula:</strong><br>
+                    ΔR = K(t) · [S - E(R)] · M · W · ln(1 + |ΔR|/400)<br>
+                    E(R) = 1 / (1 + e^(-ΔR/400))<br>
+                    K(t) = 40e^(-t/50) + 10
+                </div>
+                
+                <div class="export-buttons">
+                    <button onclick="exportData()">Export Data</button>
+                    <button onclick="document.getElementById('importFile').click()">Import Data</button>
+                </div>
+                <input type="file" id="importFile" style="display: none" accept=".json" onchange="importData(event)">
+            </div>
+            
+            <div class="card">
+                <h2>Leaderboard</h2>
+                <div id="leaderboard"></div>
+            </div>
+            
+            <div class="card">
+                <h2>Match History</h2>
+                <div class="match-history" id="matchHistory"></div>
+            </div>
+            
+            <div class="card">
+                <h2>ELO Progression</h2>
+                <div class="chart-container">
+                    <canvas id="eloChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize players
+        const players = {
+            cj: { name: 'CJ', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, history: [{date: new Date(), elo: 800}], lastActive: new Date() },
+            henry: { name: 'Henry', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, history: [{date: new Date(), elo: 800}], lastActive: new Date() },
+            ayaan: { name: 'Ayaan', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, history: [{date: new Date(), elo: 800}], lastActive: new Date() },
+            zach: { name: 'Zach', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, history: [{date: new Date(), elo: 800}], lastActive: new Date() }
+        };
+        
+        const matches = [];
+        let chart;
+        
+        // Calculate dynamic K-factor using exponential decay
+        function getKFactor(matchCount) {
+            // K(t) = 40e^(-t/50) + 10
+            // Starts at 50 for new players, decays to 10 for veterans
+            return 40 * Math.exp(-matchCount / 50) + 10;
+        }
+        
+        // Calculate expected score using logistic function (sigmoid curve)
+        function expectedScore(ratingA, ratingB) {
+            // E(R) = 1 / (1 + e^(-ΔR/400))
+            // This is the cumulative distribution function of the logistic distribution
+            return 1 / (1 + Math.exp(-(ratingA - ratingB) / 400));
+        }
+        
+        // Calculate win streak bonus using geometric progression
+        function streakBonus(streak) {
+            if (streak < 2) return 0;
+            // Geometric series: Σ(1.5^n) for n from 2 to streak
+            // Bonus = 5 * (1.5^streak - 1.5^2) / (1.5 - 1)
+            return 5 * (Math.pow(1.5, streak) - Math.pow(1.5, 2)) / 0.5;
+        }
+        
+        // Calculate rating change with advanced mathematical modeling
+        function calculateRatingChange(winnerElo, loserElo, winnerMatches, isDoubles, winnerStreak) {
+            const K = getKFactor(winnerMatches);
+            const expected = expectedScore(winnerElo, loserElo);
+            
+            // Base change using ELO formula
+            let change = K * (1 - expected);
+            
+            // Apply logarithmic scaling for extreme rating differences
+            // Prevents massive gains/losses, uses natural log for smooth curve
+            const ratingDiff = Math.abs(winnerElo - loserElo);
+            const logScale = Math.log(1 + ratingDiff / 400) / Math.log(5);
+            change *= (1 + logScale);
+            
+            // Win streak bonus
+            change += streakBonus(winnerStreak);
+            
+            // Doubles matches worth half (division by 2)
+            if (isDoubles) {
+                change *= 0.5;
+            }
+            
+            return Math.round(change);
+        }
+        
+        // Apply inactivity decay using exponential growth
+        function applyInactivityDecay() {
+            const now = new Date();
+            const dayMs = 24 * 60 * 60 * 1000;
+            
+            Object.values(players).forEach(player => {
+                const daysSinceActive = (now - player.lastActive) / dayMs;
+                
+                if (daysSinceActive >= 7) {
+                    // Decay = 10 * 2^(weeks-1)
+                    // Exponential growth: doubles each week after first
+                    const weeks = Math.floor(daysSinceActive / 7);
+                    const decay = 10 * Math.pow(2, weeks - 1);
+                    player.elo = Math.max(0, player.elo - decay);
+                    player.history.push({date: now, elo: player.elo});
+                }
+            });
+        }
+        
+        // Record match and update ELO
+        function recordMatch(winners, losers, score, isDoubles) {
+            applyInactivityDecay();
+            
+            // Calculate average ELO for teams
+            const winnerElo = winners.reduce((sum, p) => sum + players[p].elo, 0) / winners.length;
+            const loserElo = losers.reduce((sum, p) => sum + players[p].elo, 0) / losers.length;
+            const avgMatches = winners.reduce((sum, p) => sum + players[p].matches, 0) / winners.length;
+            const avgStreak = winners.reduce((sum, p) => sum + players[p].streak, 0) / winners.length;
+            
+            const change = calculateRatingChange(winnerElo, loserElo, avgMatches, isDoubles, avgStreak);
+            
+            // Update winners
+            winners.forEach(p => {
+                players[p].elo += change;
+                players[p].wins++;
+                players[p].matches++;
+                players[p].streak++;
+                players[p].lastActive = new Date();
+                players[p].history.push({date: new Date(), elo: players[p].elo});
+            });
+            
+            // Update losers
+            losers.forEach(p => {
+                players[p].elo = Math.max(0, players[p].elo - change);
+                players[p].losses++;
+                players[p].matches++;
+                players[p].streak = 0;
+                players[p].lastActive = new Date();
+                players[p].history.push({date: new Date(), elo: players[p].elo});
+            });
+            
+            // Record match
+            matches.unshift({
+                date: new Date(),
+                winners: winners.map(p => players[p].name),
+                losers: losers.map(p => players[p].name),
+                score: score,
+                eloChange: change,
+                type: isDoubles ? 'Doubles' : 'Singles'
+            });
+            
+            updateUI();
+        }
+        
+        // Update all UI elements
+        function updateUI() {
+            updateLeaderboard();
+            updateMatchHistory();
+            updateChart();
+        }
+        
+        // Update leaderboard
+        function updateLeaderboard() {
+            const sorted = Object.entries(players).sort((a, b) => b[1].elo - a[1].elo);
+            const html = sorted.map(([id, p], idx) => `
+                <div class="leaderboard-item">
+                    <div class="rank">#${idx + 1}</div>
+                    <div class="player-info">
+                        <div class="player-name">
+                            ${p.name}
+                            ${p.streak >= 2 ? `<span class="streak-badge">🔥 ${p.streak} Win Streak</span>` : ''}
+                        </div>
+                        <div class="player-stats">
+                            ${p.matches} matches • ${p.wins}W-${p.losses}L • ${p.matches > 0 ? ((p.wins/p.matches)*100).toFixed(1) : 0}% WR
+                        </div>
+                    </div>
+                    <div class="elo">${Math.round(p.elo)}</div>
+                </div>
+            `).join('');
+            document.getElementById('leaderboard').innerHTML = html;
+        }
+        
+        // Update match history
+        function updateMatchHistory() {
+            const html = matches.slice(0, 50).map(m => `
+                <div class="match-item">
+                    <div><strong>${m.type}</strong> • ${m.score} • ${m.date.toLocaleDateString()} ${m.date.toLocaleTimeString()}</div>
+                    <div>
+                        <span class="winner">${m.winners.join(' & ')}</span> defeated 
+                        <span class="loser">${m.losers.join(' & ')}</span>
+                        <span style="color: #667eea; font-weight: 600;"> (+${m.eloChange} ELO)</span>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('matchHistory').innerHTML = html || '<p>No matches recorded yet.</p>';
+        }
+        
+        // Update chart
+        function updateChart() {
+            const ctx = document.getElementById('eloChart').getContext('2d');
+            
+            if (chart) chart.destroy();
+            
+            const datasets = Object.entries(players).map(([id, p]) => ({
+                label: p.name,
+                data: p.history.map(h => ({x: h.date, y: h.elo})),
+                borderColor: getPlayerColor(id),
+                backgroundColor: getPlayerColor(id) + '20',
+                tension: 0.4,
+                fill: false
+            }));
+            
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { type: 'time', time: { unit: 'day' } },
+                        y: { beginAtZero: false, title: { display: true, text: 'ELO Rating' } }
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.dataset.label}: ${Math.round(ctx.parsed.y)} ELO`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function getPlayerColor(id) {
+            const colors = { cj: '#FF6384', henry: '#36A2EB', ayaan: '#FFCE56', zach: '#4BC0C0' };
+            return colors[id] || '#999';
+        }
+        
+        // Populate dropdowns
+        function populateSelects() {
+            const playerIds = Object.keys(players);
+            const selects = ['winner1', 'loser1', 'winTeam1', 'winTeam2', 'loseTeam1', 'loseTeam2'];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                select.innerHTML = playerIds.map(id => 
+                    `<option value="${id}">${players[id].name}</option>`
+                ).join('');
+            });
+        }
+        
+        // Form handling
+        document.getElementById('matchType').addEventListener('change', e => {
+            const isDoubles = e.target.value === 'doubles';
+            document.getElementById('singlesInputs').style.display = isDoubles ? 'none' : 'block';
+            document.getElementById('doublesInputs').style.display = isDoubles ? 'block' : 'none';
+        });
+        
+        document.getElementById('matchForm').addEventListener('submit', e => {
+            e.preventDefault();
+            
+            const matchType = document.getElementById('matchType').value;
+            const score = document.getElementById('score').value;
+            
+            let winners, losers;
+            
+            if (matchType === 'singles') {
+                winners = [document.getElementById('winner1').value];
+                losers = [document.getElementById('loser1').value];
+            } else {
+                winners = [
+                    document.getElementById('winTeam1').value,
+                    document.getElementById('winTeam2').value
+                ];
+                losers = [
+                    document.getElementById('loseTeam1').value,
+                    document.getElementById('loseTeam2').value
+                ];
+            }
+            
+            // Validation
+            const allPlayers = [...winners, ...losers];
+            if (new Set(allPlayers).size !== allPlayers.length) {
+                alert('Each player can only be selected once!');
+                return;
+            }
+            
+            recordMatch(winners, losers, score, matchType === 'doubles');
+            e.target.reset();
+        });
+        
+        // Export/Import
+        function exportData() {
+            const data = { players, matches };
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pickleball-mmr-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+        
+        function importData(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = event => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    Object.assign(players, data.players);
+                    matches.length = 0;
+                    matches.push(...data.matches);
+                    
+                    // Convert date strings back to Date objects
+                    Object.values(players).forEach(p => {
+                        p.lastActive = new Date(p.lastActive);
+                        p.history = p.history.map(h => ({...h, date: new Date(h.date)}));
+                    });
+                    matches.forEach(m => m.date = new Date(m.date));
+                    
+                    updateUI();
+                    alert('Data imported successfully!');
+                } catch (err) {
+                    alert('Error importing data: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // Initialize
+        populateSelects();
+        updateUI();
+    </script>
+</body>
+</html>
