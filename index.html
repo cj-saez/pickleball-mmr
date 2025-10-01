@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pickleball Club MMR System</title>
-  	
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         * {
             margin: 0;
@@ -672,16 +670,15 @@
 
     <script>
         // Firebase Configuration
-       const firebaseConfig = {
-  apiKey: "AIzaSyCUmUFSoQ84QRFYfTFXbbQwgmPnxDKhziI",
-  authDomain: "pickleball-mmr.firebaseapp.com",
-  projectId: "pickleball-mmr",
-  storageBucket: "pickleball-mmr.appspot.com",   // 👈 FIXED (was .firebasestorage.app)
-  messagingSenderId: "967956134535",
-  appId: "1:967956134535:web:d06507eef0774372fc5622",
-  databaseURL: "https://pickleball-mmr-default-rtdb.firebaseio.com" // 👈 ADDED
-};
-
+        const firebaseConfig = {
+            apiKey: "AIzaSyCUmUFSoQ84QRFYfTFXbbQwgmPnxDKhziI",
+            authDomain: "pickleball-mmr.firebaseapp.com",
+            databaseURL: "https://pickleball-mmr-default-rtdb.firebaseio.com",
+            projectId: "pickleball-mmr",
+            storageBucket: "pickleball-mmr.firebasestorage.app",
+            messagingSenderId: "967956134535",
+            appId: "1:967956134535:web:d06507eef0774372fc5622"
+        };
         
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -959,10 +956,13 @@
         }
         
         function recordMatch(winners, losers, score, isDoubles) {
-            const winnerElo = winners.reduce((sum, p) => sum + players[p].elo, 0) / winners.length;
-            const loserElo = losers.reduce((sum, p) => sum + players[p].elo, 0) / losers.length;
-            const avgMatches = winners.reduce((sum, p) => sum + players[p].matches, 0) / winners.length;
-            const avgStreak = winners.reduce((sum, p) => sum + players[p].streak, 0) / winners.length;
+            // Create a deep copy of players to modify
+            const updatedPlayers = JSON.parse(JSON.stringify(players));
+            
+            const winnerElo = winners.reduce((sum, p) => sum + updatedPlayers[p].elo, 0) / winners.length;
+            const loserElo = losers.reduce((sum, p) => sum + updatedPlayers[p].elo, 0) / losers.length;
+            const avgMatches = winners.reduce((sum, p) => sum + updatedPlayers[p].matches, 0) / winners.length;
+            const avgStreak = winners.reduce((sum, p) => sum + updatedPlayers[p].streak, 0) / winners.length;
             
             const change = calculateRatingChange(winnerElo, loserElo, avgMatches, isDoubles, avgStreak, score);
             
@@ -970,56 +970,63 @@
             
             // Update winners
             winners.forEach(p => {
-                players[p].elo += change;
-                players[p].wins++;
-                players[p].matches++;
-                players[p].streak++;
-                players[p].lastActive = now;
-                players[p].history.push({date: now, elo: players[p].elo});
-                players[p].recentForm.push('W');
-                if (players[p].recentForm.length > 10) players[p].recentForm.shift();
+                updatedPlayers[p].elo += change;
+                updatedPlayers[p].wins++;
+                updatedPlayers[p].matches++;
+                updatedPlayers[p].streak++;
+                updatedPlayers[p].lastActive = now;
+                updatedPlayers[p].history.push({date: now, elo: updatedPlayers[p].elo});
+                if (!updatedPlayers[p].recentForm) updatedPlayers[p].recentForm = [];
+                updatedPlayers[p].recentForm.push('W');
+                if (updatedPlayers[p].recentForm.length > 10) updatedPlayers[p].recentForm.shift();
                 
                 if (isDoubles) {
-                    players[p].doublesWins++;
-                    players[p].doublesMatches++;
+                    updatedPlayers[p].doublesWins++;
+                    updatedPlayers[p].doublesMatches++;
                 } else {
-                    players[p].singlesWins++;
-                    players[p].singlesMatches++;
+                    updatedPlayers[p].singlesWins++;
+                    updatedPlayers[p].singlesMatches++;
                 }
             });
             
             // Update losers
             losers.forEach(p => {
-                players[p].elo = Math.max(0, players[p].elo - change);
-                players[p].losses++;
-                players[p].matches++;
-                players[p].streak = 0;
-                players[p].lastActive = now;
-                players[p].history.push({date: now, elo: players[p].elo});
-                players[p].recentForm.push('L');
-                if (players[p].recentForm.length > 10) players[p].recentForm.shift();
+                updatedPlayers[p].elo = Math.max(0, updatedPlayers[p].elo - change);
+                updatedPlayers[p].losses++;
+                updatedPlayers[p].matches++;
+                updatedPlayers[p].streak = 0;
+                updatedPlayers[p].lastActive = now;
+                updatedPlayers[p].history.push({date: now, elo: updatedPlayers[p].elo});
+                if (!updatedPlayers[p].recentForm) updatedPlayers[p].recentForm = [];
+                updatedPlayers[p].recentForm.push('L');
+                if (updatedPlayers[p].recentForm.length > 10) updatedPlayers[p].recentForm.shift();
                 
                 if (isDoubles) {
-                    players[p].doublesMatches++;
+                    updatedPlayers[p].doublesMatches++;
                 } else {
-                    players[p].singlesMatches++;
+                    updatedPlayers[p].singlesMatches++;
                 }
             });
             
-            // Save to Firebase
-            database.ref('players').set(players);
-            
-            // Add match
-            const newMatch = {
-                date: now,
-                winners: winners.map(p => players[p].name),
-                losers: losers.map(p => players[p].name),
-                score: score,
-                eloChange: change,
-                type: isDoubles ? 'Doubles' : 'Singles'
-            };
-            
-            database.ref('matches').push(newMatch);
+            // Save to Firebase - update players first
+            database.ref('players').set(updatedPlayers).then(() => {
+                // Then add match
+                const newMatch = {
+                    date: now,
+                    winners: winners.map(p => updatedPlayers[p].name),
+                    losers: losers.map(p => updatedPlayers[p].name),
+                    score: score,
+                    eloChange: change,
+                    type: isDoubles ? 'Doubles' : 'Singles'
+                };
+                
+                return database.ref('matches').push(newMatch);
+            }).then(() => {
+                alert('Match recorded and saved to Firebase! ✅');
+            }).catch(error => {
+                console.error('Error saving match:', error);
+                alert('Error saving match: ' + error.message);
+            });
         }
         
         function updateUI() {
@@ -1235,8 +1242,6 @@
             recordMatch(winners, losers, score, matchType === 'doubles');
             e.target.reset();
             document.getElementById('predictionBox').style.display = 'none';
-            
-            alert('Match recorded and saved to Firebase! ✅');
         });
         
         // Initialize
@@ -1252,4 +1257,3 @@
     </script>
 </body>
 </html>
-
