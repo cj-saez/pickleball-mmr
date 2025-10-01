@@ -714,6 +714,15 @@
             database.ref('players').on('value', snapshot => {
                 if (snapshot.exists()) {
                     players = snapshot.val();
+                    // Ensure all players have required fields
+                    Object.keys(players).forEach(id => {
+                        if (!players[id].recentForm) players[id].recentForm = [];
+                        if (!players[id].history) players[id].history = [{date: new Date().toISOString(), elo: players[id].elo}];
+                        if (!players[id].singlesWins) players[id].singlesWins = 0;
+                        if (!players[id].singlesMatches) players[id].singlesMatches = 0;
+                        if (!players[id].doublesWins) players[id].doublesWins = 0;
+                        if (!players[id].doublesMatches) players[id].doublesMatches = 0;
+                    });
                     updateUI();
                 }
             });
@@ -959,6 +968,16 @@
             // Create a deep copy of players to modify
             const updatedPlayers = JSON.parse(JSON.stringify(players));
             
+            // Ensure all players have required arrays
+            [...winners, ...losers].forEach(p => {
+                if (!updatedPlayers[p].recentForm) updatedPlayers[p].recentForm = [];
+                if (!updatedPlayers[p].history) updatedPlayers[p].history = [];
+                if (!updatedPlayers[p].singlesWins) updatedPlayers[p].singlesWins = 0;
+                if (!updatedPlayers[p].singlesMatches) updatedPlayers[p].singlesMatches = 0;
+                if (!updatedPlayers[p].doublesWins) updatedPlayers[p].doublesWins = 0;
+                if (!updatedPlayers[p].doublesMatches) updatedPlayers[p].doublesMatches = 0;
+            });
+            
             const winnerElo = winners.reduce((sum, p) => sum + updatedPlayers[p].elo, 0) / winners.length;
             const loserElo = losers.reduce((sum, p) => sum + updatedPlayers[p].elo, 0) / losers.length;
             const avgMatches = winners.reduce((sum, p) => sum + updatedPlayers[p].matches, 0) / winners.length;
@@ -976,7 +995,6 @@
                 updatedPlayers[p].streak++;
                 updatedPlayers[p].lastActive = now;
                 updatedPlayers[p].history.push({date: now, elo: updatedPlayers[p].elo});
-                if (!updatedPlayers[p].recentForm) updatedPlayers[p].recentForm = [];
                 updatedPlayers[p].recentForm.push('W');
                 if (updatedPlayers[p].recentForm.length > 10) updatedPlayers[p].recentForm.shift();
                 
@@ -997,7 +1015,6 @@
                 updatedPlayers[p].streak = 0;
                 updatedPlayers[p].lastActive = now;
                 updatedPlayers[p].history.push({date: now, elo: updatedPlayers[p].elo});
-                if (!updatedPlayers[p].recentForm) updatedPlayers[p].recentForm = [];
                 updatedPlayers[p].recentForm.push('L');
                 if (updatedPlayers[p].recentForm.length > 10) updatedPlayers[p].recentForm.shift();
                 
