@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pickleball MMR System</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <title>Pickleball Club MMR System</title>
+  	
+ <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+
+
     <style>
         * {
             margin: 0;
@@ -56,6 +61,15 @@
         .dark-mode-toggle:hover {
             background: rgba(255,255,255,0.3);
             transform: scale(1.05);
+        }
+        
+        .status-badge {
+            background: #28a745;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-left: 15px;
         }
         
         .grid {
@@ -123,9 +137,9 @@
         }
         
         textarea {
-            min-height: 150px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
+            min-height: 60px;
+            font-family: inherit;
+            font-size: 14px;
         }
         
         input:focus, select:focus, textarea:focus {
@@ -195,6 +209,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            flex-wrap: wrap;
         }
         
         .dark-mode .player-name {
@@ -288,16 +303,6 @@
             margin-top: 20px;
         }
         
-        .export-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        
-        .export-buttons button {
-            flex: 1;
-        }
-        
         .formula-card {
             background: #f8f9fa;
             padding: 15px;
@@ -314,8 +319,8 @@
         }
         
         .info-box {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
             padding: 15px;
             border-radius: 8px;
             margin-top: 15px;
@@ -324,16 +329,16 @@
         }
         
         .dark-mode .info-box {
-            background: #2a2416;
-            color: #ffd;
+            background: #1a2a3a;
+            color: #9fd;
         }
         
         .info-box strong {
-            color: #856404;
+            color: #0c5460;
         }
         
         .dark-mode .info-box strong {
-            color: #ffc107;
+            color: #17a2b8;
         }
         
         .mvp-card {
@@ -549,7 +554,10 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏓 Pickleball Club MMR System</h1>
+            <div>
+                <h1>🏓 Pickleball Club MMR System</h1>
+                <span class="status-badge" id="statusBadge">🔄 Connecting...</span>
+            </div>
             <button class="dark-mode-toggle" onclick="toggleDarkMode()">🌙 Dark Mode</button>
         </div>
         
@@ -613,7 +621,7 @@
                         <option value="ayaan">Ayaan</option>
                         <option value="zach">Zach</option>
                     </select>
-                    <textarea id="trashTalkInput" placeholder="Drop some trash talk..." style="min-height: 60px; margin-bottom: 10px;"></textarea>
+                    <textarea id="trashTalkInput" placeholder="Drop some trash talk..."></textarea>
                     <button onclick="addTrashTalk()" style="background: #ff6b6b;">Post Trash Talk 🔥</button>
                     <div id="trashTalkList" style="margin-top: 15px; max-height: 200px; overflow-y: auto;"></div>
                 </div>
@@ -626,13 +634,8 @@
                 </div>
                 
                 <div class="info-box">
-                    <strong>💾 Data Persistence:</strong><br>
-                    After recording matches, click "Get Updated Data" to save to GitHub!
-                </div>
-                
-                <div class="export-buttons">
-                    <button onclick="showDataModal()">Get Updated Data</button>
-                    <button class="secondary" onclick="downloadJSON()">Download JSON</button>
+                    <strong>☁️ Firebase Connected:</strong><br>
+                    All data saves automatically to the cloud! Anyone with the link can record matches.
                 </div>
             </div>
             
@@ -668,42 +671,78 @@
         </div>
     </div>
 
-    <div id="dataModal" class="modal">
-        <div class="modal-content">
-            <h3>📋 Copy this to data.json</h3>
-            <p style="color: #666; margin-bottom: 15px;">Copy the text below and paste it into your <code>data.json</code> file in GitHub.</p>
-            <textarea id="jsonOutput" readonly></textarea>
-            <button style="background: #28a745;" onclick="copyToClipboard()">Copy to Clipboard</button>
-            <button class="close-modal" onclick="closeDataModal()">Close</button>
-        </div>
-    </div>
-
     <script>
-        let players = {
-            cj: { name: 'CJ', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, singlesWins: 0, singlesMatches: 0, doublesWins: 0, doublesMatches: 0, history: [{date: new Date().toISOString(), elo: 800}], lastActive: new Date().toISOString(), recentForm: [] },
-            henry: { name: 'Henry', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, singlesWins: 0, singlesMatches: 0, doublesWins: 0, doublesMatches: 0, history: [{date: new Date().toISOString(), elo: 800}], lastActive: new Date().toISOString(), recentForm: [] },
-            ayaan: { name: 'Ayaan', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, singlesWins: 0, singlesMatches: 0, doublesWins: 0, doublesMatches: 0, history: [{date: new Date().toISOString(), elo: 800}], lastActive: new Date().toISOString(), recentForm: [] },
-            zach: { name: 'Zach', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, singlesWins: 0, singlesMatches: 0, doublesWins: 0, doublesMatches: 0, history: [{date: new Date().toISOString(), elo: 800}], lastActive: new Date().toISOString(), recentForm: [] }
-        };
+        // Firebase Configuration
+       const firebaseConfig = {
+  apiKey: "AIzaSyCUmUFSoQ84QRFYfTFXbbQwgmPnxDKhziI",
+  authDomain: "pickleball-mmr.firebaseapp.com",
+  projectId: "pickleball-mmr",
+  storageBucket: "pickleball-mmr.appspot.com",   // 👈 FIXED (was .firebasestorage.app)
+  messagingSenderId: "967956134535",
+  appId: "1:967956134535:web:d06507eef0774372fc5622",
+  databaseURL: "https://pickleball-mmr-default-rtdb.firebaseio.com" // 👈 ADDED
+};
+
         
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        
+        let players = {};
         let matches = [];
         let trashTalk = [];
         let chart;
         let isDarkMode = false;
         
-        async function loadData() {
-            try {
-                const response = await fetch('data.json');
-                if (response.ok) {
-                    const data = await response.json();
-                    players = data.players;
-                    matches = data.matches || [];
-                    trashTalk = data.trashTalk || [];
+        // Initialize default players if none exist
+        function initializePlayers() {
+            const defaultPlayers = {
+                cj: { name: 'CJ', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, singlesWins: 0, singlesMatches: 0, doublesWins: 0, doublesMatches: 0, history: [{date: new Date().toISOString(), elo: 800}], lastActive: new Date().toISOString(), recentForm: [] },
+                henry: { name: 'Henry', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, singlesWins: 0, singlesMatches: 0, doublesWins: 0, doublesMatches: 0, history: [{date: new Date().toISOString(), elo: 800}], lastActive: new Date().toISOString(), recentForm: [] },
+                ayaan: { name: 'Ayaan', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, singlesWins: 0, singlesMatches: 0, doublesWins: 0, doublesMatches: 0, history: [{date: new Date().toISOString(), elo: 800}], lastActive: new Date().toISOString(), recentForm: [] },
+                zach: { name: 'Zach', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, singlesWins: 0, singlesMatches: 0, doublesWins: 0, doublesMatches: 0, history: [{date: new Date().toISOString(), elo: 800}], lastActive: new Date().toISOString(), recentForm: [] }
+            };
+            
+            database.ref('players').once('value', snapshot => {
+                if (!snapshot.exists()) {
+                    database.ref('players').set(defaultPlayers);
+                }
+            });
+        }
+        
+        // Load data from Firebase
+        function loadData() {
+            document.getElementById('statusBadge').textContent = '✅ Connected';
+            document.getElementById('statusBadge').style.background = '#28a745';
+            
+            database.ref('players').on('value', snapshot => {
+                if (snapshot.exists()) {
+                    players = snapshot.val();
                     updateUI();
                 }
-            } catch (error) {
-                updateUI();
-            }
+            });
+            
+            database.ref('matches').on('value', snapshot => {
+                matches = [];
+                if (snapshot.exists()) {
+                    snapshot.forEach(child => {
+                        matches.push(child.val());
+                    });
+                    matches.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    updateUI();
+                }
+            });
+            
+            database.ref('trashTalk').on('value', snapshot => {
+                trashTalk = [];
+                if (snapshot.exists()) {
+                    snapshot.forEach(child => {
+                        trashTalk.push(child.val());
+                    });
+                    trashTalk.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    updateTrashTalk();
+                }
+            });
         }
         
         function toggleDarkMode() {
@@ -722,14 +761,14 @@
                 return;
             }
             
-            trashTalk.unshift({
+            const newTrashTalk = {
                 author: players[author].name,
                 text: text,
                 date: new Date().toISOString()
-            });
+            };
             
+            database.ref('trashTalk').push(newTrashTalk);
             document.getElementById('trashTalkInput').value = '';
-            updateTrashTalk();
         }
         
         function updateTrashTalk() {
@@ -847,7 +886,6 @@
         function getMarginMultiplier(scoreStr) {
             const score = parseScore(scoreStr);
             if (!score) return 1;
-            
             const margin = Math.abs(score.winner - score.loser);
             return 1 + (margin / 20) * 0.3;
         }
@@ -872,23 +910,6 @@
             }
             
             return Math.round(change);
-        }
-        
-        function applyInactivityDecay() {
-            const now = new Date();
-            const dayMs = 24 * 60 * 60 * 1000;
-            
-            Object.values(players).forEach(player => {
-                const lastActive = new Date(player.lastActive);
-                const daysSinceActive = (now - lastActive) / dayMs;
-                
-                if (daysSinceActive >= 7) {
-                    const weeks = Math.floor(daysSinceActive / 7);
-                    const decay = 10 * Math.pow(2, weeks - 1);
-                    player.elo = Math.max(0, player.elo - decay);
-                    player.history.push({date: now.toISOString(), elo: player.elo});
-                }
-            });
         }
         
         function showPrediction() {
@@ -939,8 +960,6 @@
         }
         
         function recordMatch(winners, losers, score, isDoubles) {
-            applyInactivityDecay();
-            
             const winnerElo = winners.reduce((sum, p) => sum + players[p].elo, 0) / winners.length;
             const loserElo = losers.reduce((sum, p) => sum + players[p].elo, 0) / losers.length;
             const avgMatches = winners.reduce((sum, p) => sum + players[p].matches, 0) / winners.length;
@@ -950,6 +969,7 @@
             
             const now = new Date().toISOString();
             
+            // Update winners
             winners.forEach(p => {
                 players[p].elo += change;
                 players[p].wins++;
@@ -969,6 +989,7 @@
                 }
             });
             
+            // Update losers
             losers.forEach(p => {
                 players[p].elo = Math.max(0, players[p].elo - change);
                 players[p].losses++;
@@ -986,16 +1007,20 @@
                 }
             });
             
-            matches.unshift({
+            // Save to Firebase
+            database.ref('players').set(players);
+            
+            // Add match
+            const newMatch = {
                 date: now,
                 winners: winners.map(p => players[p].name),
                 losers: losers.map(p => players[p].name),
                 score: score,
                 eloChange: change,
                 type: isDoubles ? 'Doubles' : 'Singles'
-            });
+            };
             
-            updateUI();
+            database.ref('matches').push(newMatch);
         }
         
         function updateUI() {
@@ -1003,7 +1028,6 @@
             updateMatchHistory();
             updateChart();
             updateMVP();
-            updateTrashTalk();
         }
         
         function updateLeaderboard() {
@@ -1068,7 +1092,7 @@
                     </div>
                     <div class="stat-row">
                         <span>Current Streak</span>
-                        <strong>${p.streak > 0 ? `${p.streak}W 🔥` : `${Math.abs(p.streak)}L`}</strong>
+                        <strong>${p.streak > 0 ? `${p.streak}W 🔥` : `0`}</strong>
                     </div>
                     
                     <h4 style="color: #667eea; margin: 15px 0 10px 0;">🎾 Match Type Breakdown</h4>
@@ -1213,38 +1237,21 @@
             e.target.reset();
             document.getElementById('predictionBox').style.display = 'none';
             
-            alert('Match recorded! Click "Get Updated Data" to save to GitHub.');
+            alert('Match recorded and saved to Firebase! ✅');
         });
         
-        function showDataModal() {
-            const data = { players, matches, trashTalk };
-            document.getElementById('jsonOutput').value = JSON.stringify(data, null, 2);
-            document.getElementById('dataModal').classList.add('active');
-        }
-        
-        function closeDataModal() {
-            document.getElementById('dataModal').classList.remove('active');
-        }
-        
-        function copyToClipboard() {
-            const textarea = document.getElementById('jsonOutput');
-            textarea.select();
-            document.execCommand('copy');
-            alert('Copied to clipboard! Paste this into your data.json file in GitHub.');
-        }
-        
-        function downloadJSON() {
-            const data = { players, matches, trashTalk };
-            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `pickleball-data-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-        }
-        
+        // Initialize
+        initializePlayers();
         loadData();
-        populateSelects();
+        
+        // Wait for players to load before populating selects
+        setTimeout(() => {
+            if (Object.keys(players).length > 0) {
+                populateSelects();
+            }
+        }, 1000);
     </script>
 </body>
 </html>
+
+
