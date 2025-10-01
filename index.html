@@ -710,41 +710,39 @@
         }
         
         // Load data from Firebase
-       unction loadData() {
-    document.getElementById('statusBadge').textContent = '✅ Connected';
-    document.getElementById('statusBadge').style.background = '#28a745';
-    
-    database.ref('players').on('value', snapshot => {
-        if (snapshot.exists()) {
-            players = snapshot.val();
-            populateSelects(); // ADD THIS LINE - repopulate dropdowns when players update
-            updateUI();
-        }
-    });
-    
-    database.ref('matches').on('value', snapshot => {
-        matches = [];
-        if (snapshot.exists()) {
-            snapshot.forEach(child => {
-                matches.push(child.val());
+        function loadData() {
+            document.getElementById('statusBadge').textContent = '✅ Connected';
+            document.getElementById('statusBadge').style.background = '#28a745';
+            
+            database.ref('players').on('value', snapshot => {
+                if (snapshot.exists()) {
+                    players = snapshot.val();
+                    updateUI();
+                }
             });
-            matches.sort((a, b) => new Date(b.date) - new Date(a.date));
-            updateUI();
-        }
-    });
-    
-    database.ref('trashTalk').on('value', snapshot => {
-        trashTalk = [];
-        if (snapshot.exists()) {
-            snapshot.forEach(child => {
-                trashTalk.push(child.val());
+            
+            database.ref('matches').on('value', snapshot => {
+                matches = [];
+                if (snapshot.exists()) {
+                    snapshot.forEach(child => {
+                        matches.push(child.val());
+                    });
+                    matches.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    updateUI();
+                }
             });
-            trashTalk.sort((a, b) => new Date(b.date) - new Date(a.date));
-            updateTrashTalk();
+            
+            database.ref('trashTalk').on('value', snapshot => {
+                trashTalk = [];
+                if (snapshot.exists()) {
+                    snapshot.forEach(child => {
+                        trashTalk.push(child.val());
+                    });
+                    trashTalk.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    updateTrashTalk();
+                }
+            });
         }
-    });
-}
-}
         
         function toggleDarkMode() {
             isDarkMode = !isDarkMode;
@@ -1246,9 +1244,12 @@
         loadData();
         
         // Wait for players to load before populating selects
-        
+        setTimeout(() => {
+            if (Object.keys(players).length > 0) {
+                populateSelects();
+            }
+        }, 1000);
     </script>
 </body>
 </html>
-
 
