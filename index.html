@@ -673,6 +673,29 @@
         </div>
     </div>
 
+    <div id="addPlayerModal" class="modal">
+        <div class="modal-content">
+            <h3>➕ Add New Player</h3>
+            <form id="addPlayerForm">
+                <div class="form-group">
+                    <label>Player Name</label>
+                    <input type="text" id="newPlayerName" placeholder="Enter player name" required>
+                </div>
+                <div class="form-group">
+                    <label>Player ID (lowercase, no spaces)</label>
+                    <input type="text" id="newPlayerId" placeholder="e.g., john" pattern="[a-z]+" required>
+                    <small style="color: #666; font-size: 12px;">Letters only, lowercase</small>
+                </div>
+                <div class="form-group">
+                    <label>Starting ELO</label>
+                    <input type="number" id="newPlayerElo" value="800" min="0" required>
+                </div>
+                <button type="submit" style="background: #28a745;">Add Player</button>
+                <button type="button" class="close-modal" onclick="closeAddPlayerModal()">Cancel</button>
+            </form>
+        </div>
+    </div>
+
     <script>
         // Firebase Configuration
         const firebaseConfig = {
@@ -694,6 +717,54 @@
         let trashTalk = [];
         let chart;
         let isDarkMode = false;
+        
+        // Modal functions - define early so onclick works
+        function closeProfileModal() {
+            document.getElementById('profileModal').classList.remove('active');
+        }
+        
+        function showAddPlayerModal() {
+            document.getElementById('addPlayerModal').classList.add('active');
+        }
+        
+        function closeAddPlayerModal() {
+            document.getElementById('addPlayerModal').classList.remove('active');
+            document.getElementById('addPlayerForm').reset();
+        }
+        
+        function addNewPlayer(playerId, playerName, startingElo) {
+            // Check if player already exists
+            if (players[playerId]) {
+                alert('A player with this ID already exists!');
+                return;
+            }
+            
+            const newPlayer = {
+                name: playerName,
+                elo: startingElo,
+                matches: 0,
+                wins: 0,
+                losses: 0,
+                streak: 0,
+                singlesWins: 0,
+                singlesMatches: 0,
+                doublesWins: 0,
+                doublesMatches: 0,
+                history: [{date: new Date().toISOString(), elo: startingElo}],
+                lastActive: new Date().toISOString(),
+                recentForm: []
+            };
+            
+            // Add to Firebase
+            database.ref('players/' + playerId).set(newPlayer).then(() => {
+                alert(`${playerName} added successfully! 🎉`);
+                closeAddPlayerModal();
+                // Refresh dropdowns
+                setTimeout(() => populateSelects(), 500);
+            }).catch(error => {
+                alert('Error adding player: ' + error.message);
+            });
+        }
         
         // Initialize default players if none exist
         function initializePlayers() {
@@ -897,24 +968,26 @@
             const score = parseScore(scoreStr);
             if (!score) return 1;
             const margin = Math.abs(score.winner - score.loser);
-            return 1 + (margin / 20) * 0.3;
+            // Bigger margins give more ELO (blowouts should matter)
+            // But cap it so it's not too extreme
+            return 1 + Math.min(margin / 15, 0.5);
         }
         
         function calculateRatingChange(winnerElo, loserElo, winnerMatches, isDoubles, winnerStreak, scoreStr) {
             const K = getKFactor(winnerMatches);
             const expected = expectedScore(winnerElo, loserElo);
             
+            // Base change - as you get higher rated vs opponent, you gain less
             let change = K * (1 - expected);
             
-            const ratingDiff = Math.abs(winnerElo - loserElo);
-            const logScale = Math.log(1 + ratingDiff / 400) / Math.log(5);
-            change *= (1 + logScale);
-            
+            // Margin multiplier - bigger wins = more points
             const marginMult = getMarginMultiplier(scoreStr);
             change *= marginMult;
             
+            // Add streak bonus
             change += streakBonus(winnerStreak);
             
+            // Doubles worth half
             if (isDoubles) {
                 change *= 0.5;
             }
@@ -1139,9 +1212,22 @@
             document.getElementById('profileModal').classList.add('active');
         }
         
-        function closeProfileModal() {
-            document.getElementById('profileModal').classList.remove('active');
-        }
+        // Add player form handler
+        document.addEventListener('DOMContentLoaded', () => {
+            const addPlayerForm = document.getElementById('addPlayerForm');
+            if (addPlayerForm) {
+                addPlayerForm.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const playerId = document.getElementById('newPlayerId').value.trim().toLowerCase();
+                    const playerName = document.getElementById('newPlayerName').value.trim();
+                    const startingElo = parseInt(document.getElementById('newPlayerElo').value);
+                    
+                    if (playerId && playerName && startingElo >= 0) {
+                        addNewPlayer(playerId, playerName, startingElo);
+                    }
+                });
+            }
+        });
         
         function updateMatchHistory() {
             const html = matches.slice(0, 50).map(m => {
