@@ -555,8 +555,8 @@
                 
                 <div class="formula-card">
                     <strong>Enhanced ELO Formula:</strong><br>
-                    ΔR = K(t) · [S - E(R)] · M(score) · W · ln(1 + |ΔR|/400)<br>
-                    M(score) = 1 + (margin/20) · 0.3<br>
+                    ΔR = K(t) · [S - E(R)] · M(score) · W<br>
+                    M(score) = 1 + min(margin/15, 0.5)<br>
                     E(R) = 1 / (1 + e^(-ΔR/400))
                 </div>
             </div>
@@ -617,7 +617,6 @@
     </div>
 
     <script>
-        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCUmUFSoQ84QRFYfTFXbbQwgmPnxDKhziI",
             authDomain: "pickleball-mmr.firebaseapp.com",
@@ -628,7 +627,6 @@
             appId: "1:967956134535:web:d06507eef0774372fc5622"
         };
         
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         
@@ -637,7 +635,6 @@
         let chart;
         let isDarkMode = false;
         
-        // Modal functions
         function closeProfileModal() {
             document.getElementById('profileModal').classList.remove('active');
         }
@@ -712,7 +709,6 @@
                         if (!players[id].doublesWins) players[id].doublesWins = 0;
                         if (!players[id].doublesMatches) players[id].doublesMatches = 0;
                     });
-                    console.log('Players loaded:', players);
                     updateUI();
                 }
             });
@@ -724,7 +720,6 @@
                         matches.push(child.val());
                     });
                     matches.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    console.log('Matches loaded:', matches);
                     updateUI();
                 }
             });
@@ -1029,22 +1024,6 @@
             document.getElementById('profileModal').classList.add('active');
         }
         
-        document.addEventListener('DOMContentLoaded', () => {
-            const addPlayerForm = document.getElementById('addPlayerForm');
-            if (addPlayerForm) {
-                addPlayerForm.addEventListener('submit', e => {
-                    e.preventDefault();
-                    const playerId = document.getElementById('newPlayerId').value.trim().toLowerCase();
-                    const playerName = document.getElementById('newPlayerName').value.trim();
-                    const startingElo = parseInt(document.getElementById('newPlayerElo').value);
-                    
-                    if (playerId && playerName && startingElo >= 0) {
-                        addNewPlayer(playerId, playerName, startingElo);
-                    }
-                });
-            }
-        });
-        
         function updateMatchHistory() {
             const html = matches.slice(0, 50).map(m => {
                 const date = new Date(m.date);
@@ -1063,20 +1042,11 @@
         
         function updateChart() {
             const select = document.getElementById('chartPlayerSelect');
-            if (!select) {
-                console.log('Chart select not found');
-                return;
-            }
+            if (!select) return;
             
             const selectedPlayer = select.value;
-            console.log('Selected player for chart:', selectedPlayer);
-            console.log('Current players data:', players);
-            
             const ctx = document.getElementById('eloChart');
-            if (!ctx) {
-                console.log('Chart canvas not found');
-                return;
-            }
+            if (!ctx) return;
             
             if (chart) {
                 chart.destroy();
@@ -1086,82 +1056,135 @@
             
             if (selectedPlayer === 'all') {
                 datasets = Object.entries(players).map(([id, p]) => {
-                    console.log(`Player ${id} history:`, p.history);
-                    if (!p.history || p.history.length === 0) {
-                        console.log(`No history for ${id}`);
-                        return null;
-                    }
+                    if (!p.history || p.history.length === 0) return null;
                     return {
                         label: p.name,
-                        data: p.history.map(h => ({x: new Date(h.date), y: h.elo})),
+                        data: p.history.map(h => ({
+                            x: new Date(h.date), 
+                            y: Math.round(h.elo)
+                        })),
                         borderColor: getPlayerColor(id),
                         backgroundColor: getPlayerColor(id) + '20',
-                        tension: 0.4,
+                        tension: 0.3,
                         fill: false,
-                        borderWidth: 2
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
                     };
                 }).filter(d => d !== null);
             } else {
                 const p = players[selectedPlayer];
                 if (p && p.history && p.history.length > 0) {
-                    console.log(`Chart data for ${selectedPlayer}:`, p.history);
                     datasets = [{
                         label: p.name,
-                        data: p.history.map(h => ({x: new Date(h.date), y: h.elo})),
+                        data: p.history.map(h => ({
+                            x: new Date(h.date), 
+                            y: Math.round(h.elo)
+                        })),
                         borderColor: getPlayerColor(selectedPlayer),
-                        backgroundColor: getPlayerColor(selectedPlayer) + '20',
-                        tension: 0.4,
+                        backgroundColor: getPlayerColor(selectedPlayer) + '30',
+                        tension: 0.3,
                         fill: true,
-                        borderWidth: 3
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
                     }];
                 }
             }
             
-            console.log('Chart datasets:', datasets);
-            
             if (datasets.length === 0) {
-                console.log('No datasets to display');
                 return;
             }
             
-            try {
-                chart = new Chart(ctx, {
-                    type: 'line',
-                    data: { datasets },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: { 
-                                type: 'time', 
-                                time: { unit: 'day' },
-                                ticks: { color: isDarkMode ? '#c0c0c0' : '#666' },
-                                grid: { color: isDarkMode ? '#444' : '#ddd' }
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        x: { 
+                            type: 'time',
+                            time: { 
+                                unit: 'day',
+                                displayFormats: {
+                                    day: 'MMM d'
+                                }
                             },
-                            y: { 
-                                beginAtZero: false, 
-                                title: { display: true, text: 'ELO Rating', color: isDarkMode ? '#c0c0c0' : '#666' },
-                                ticks: { color: isDarkMode ? '#c0c0c0' : '#666' },
-                                grid: { color: isDarkMode ? '#444' : '#ddd' }
+                            ticks: { 
+                                color: isDarkMode ? '#c0c0c0' : '#666',
+                                maxRotation: 45,
+                                minRotation: 45
+                            },
+                            grid: { 
+                                color: isDarkMode ? '#444' : '#e0e0e0',
+                                drawBorder: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                color: isDarkMode ? '#c0c0c0' : '#666'
                             }
                         },
-                        plugins: {
-                            legend: { 
-                                position: 'top',
-                                labels: { color: isDarkMode ? '#c0c0c0' : '#666' }
+                        y: { 
+                            beginAtZero: false,
+                            ticks: { 
+                                color: isDarkMode ? '#c0c0c0' : '#666',
+                                callback: function(value) {
+                                    return Math.round(value);
+                                }
                             },
-                            tooltip: {
-                                callbacks: {
-                                    label: context => `${context.dataset.label}: ${Math.round(context.parsed.y)} ELO`
+                            grid: { 
+                                color: isDarkMode ? '#444' : '#e0e0e0',
+                                drawBorder: false
+                            },
+                            title: { 
+                                display: true, 
+                                text: 'ELO Rating', 
+                                color: isDarkMode ? '#c0c0c0' : '#666',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { 
+                            position: 'top',
+                            labels: { 
+                                color: isDarkMode ? '#c0c0c0' : '#666',
+                                padding: 15,
+                                font: {
+                                    size: 13
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: isDarkMode ? '#2a2a3e' : 'white',
+                            titleColor: isDarkMode ? '#fff' : '#333',
+                            bodyColor: isDarkMode ? '#c0c0c0' : '#666',
+                            borderColor: isDarkMode ? '#667eea' : '#ddd',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${Math.round(context.parsed.y)} ELO`;
+                                },
+                                title: function(context) {
+                                    const date = new Date(context[0].parsed.x);
+                                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
                                 }
                             }
                         }
                     }
-                });
-                console.log('Chart created successfully');
-            } catch (error) {
-                console.error('Error creating chart:', error);
-            }
+                }
+            });
         }
         
         function getPlayerColor(id) {
@@ -1220,6 +1243,22 @@
             recordMatch(winners, losers, score, matchType === 'doubles');
             e.target.reset();
             document.getElementById('predictionBox').style.display = 'none';
+        });
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const addPlayerForm = document.getElementById('addPlayerForm');
+            if (addPlayerForm) {
+                addPlayerForm.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const playerId = document.getElementById('newPlayerId').value.trim().toLowerCase();
+                    const playerName = document.getElementById('newPlayerName').value.trim();
+                    const startingElo = parseInt(document.getElementById('newPlayerElo').value);
+                    
+                    if (playerId && playerName && startingElo >= 0) {
+                        addNewPlayer(playerId, playerName, startingElo);
+                    }
+                });
+            }
         });
         
         initializePlayers();
