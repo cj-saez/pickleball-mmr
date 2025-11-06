@@ -328,31 +328,16 @@
             color: #17a2b8;
         }
         
-        .mvp-card {
-            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
+        .player-selector {
             margin-bottom: 15px;
-            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.3);
         }
         
-        .mvp-card h3 {
-            font-size: 16px;
-            color: #333;
-            margin-bottom: 10px;
+        .player-selector label {
+            margin-bottom: 8px;
         }
         
-        .mvp-name {
-            font-size: 32px;
-            font-weight: bold;
-            color: #764ba2;
-        }
-        
-        .mvp-stats {
-            font-size: 14px;
-            color: #666;
-            margin-top: 5px;
+        .player-selector select {
+            padding: 8px;
         }
         
         .prediction-box {
@@ -574,11 +559,6 @@
                     M(score) = 1 + (margin/20) · 0.3<br>
                     E(R) = 1 / (1 + e^(-ΔR/400))
                 </div>
-                
-                <div class="info-box">
-                    <strong>☁️ Firebase Connected:</strong><br>
-                    All data saves automatically to the cloud! Anyone with the link can record matches.
-                </div>
             </div>
             
             <div class="card">
@@ -593,6 +573,12 @@
             
             <div class="card">
                 <h2>ELO Progression</h2>
+                <div class="player-selector">
+                    <label>Select Player:</label>
+                    <select id="chartPlayerSelect" onchange="updateChart()">
+                        <option value="all">All Players</option>
+                    </select>
+                </div>
                 <div class="chart-container">
                     <canvas id="eloChart"></canvas>
                 </div>
@@ -772,63 +758,6 @@
             return '❄️❄️';
         }
         
-        function getWeeklyMVP() {
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-            
-            const weeklyStats = {};
-            Object.keys(players).forEach(id => {
-                weeklyStats[id] = { wins: 0, matches: 0, eloGain: 0 };
-            });
-            
-            matches.forEach(match => {
-                const matchDate = new Date(match.date);
-                if (matchDate >= oneWeekAgo) {
-                    match.winners.forEach(name => {
-                        const id = Object.keys(players).find(k => players[k].name === name);
-                        if (id) {
-                            weeklyStats[id].wins++;
-                            weeklyStats[id].matches++;
-                            weeklyStats[id].eloGain += match.eloChange;
-                        }
-                    });
-                    match.losers.forEach(name => {
-                        const id = Object.keys(players).find(k => players[k].name === name);
-                        if (id) {
-                            weeklyStats[id].matches++;
-                        }
-                    });
-                }
-            });
-            
-            let mvp = null;
-            let maxScore = 0;
-            
-            Object.entries(weeklyStats).forEach(([id, stats]) => {
-                if (stats.matches > 0) {
-                    const score = stats.wins * 10 + stats.eloGain;
-                    if (score > maxScore) {
-                        maxScore = score;
-                        mvp = { id, stats };
-                    }
-                }
-            });
-            
-            return mvp;
-        }
-        
-        function updateMVP() {
-            const mvp = getWeeklyMVP();
-            if (mvp) {
-                document.getElementById('mvpName').textContent = players[mvp.id].name;
-                document.getElementById('mvpStats').textContent = 
-                    `${mvp.stats.wins}W-${mvp.stats.matches - mvp.stats.wins}L • +${Math.round(mvp.stats.eloGain)} ELO this week`;
-            } else {
-                document.getElementById('mvpName').textContent = '-';
-                document.getElementById('mvpStats').textContent = 'No matches this week';
-            }
-        }
-        
         function getKFactor(matchCount) {
             return 40 * Math.exp(-matchCount / 50) + 10;
         }
@@ -997,8 +926,24 @@
         function updateUI() {
             updateLeaderboard();
             updateMatchHistory();
+            updateChartPlayerSelect();
             updateChart();
-            updateMVP();
+        }
+        
+        function updateChartPlayerSelect() {
+            const select = document.getElementById('chartPlayerSelect');
+            const currentValue = select.value;
+            
+            select.innerHTML = '<option value="all">All Players</option>';
+            
+            Object.entries(players).forEach(([id, p]) => {
+                const option = document.createElement('option');
+                option.value = id;
+                option.textContent = p.name;
+                select.appendChild(option);
+            });
+            
+            select.value = currentValue;
         }
         
         function updateLeaderboard() {
@@ -1115,18 +1060,47 @@
         }
         
         function updateChart() {
-            const ctx = document.getElementById('eloChart').getContext('2d');
+            const select = document.getElementById('chartPlayerSelect');
+            if (!select) return;
+            
+            const selectedPlayer = select.value;
+            
+            const ctx = document.getElementById('eloChart');
+            if (!ctx) return;
             
             if (chart) chart.destroy();
             
-            const datasets = Object.entries(players).map(([id, p]) => ({
-                label: p.name,
-                data: p.history.map(h => ({x: new Date(h.date), y: h.elo})),
-                borderColor: getPlayerColor(id),
-                backgroundColor: getPlayerColor(id) + '20',
-                tension: 0.4,
-                fill: false
-            }));
+            let datasets = [];
+            
+            if (selectedPlayer === 'all') {
+                datasets = Object.entries(players).map(([id, p]) => {
+                    if (!p.history || p.history.length === 0) return null;
+                    return {
+                        label: p.name,
+                        data: p.history.map(h => ({x: new Date(h.date), y: h.elo})),
+                        borderColor: getPlayerColor(id),
+                        backgroundColor: getPlayerColor(id) + '20',
+                        tension: 0.4,
+                        fill: false,
+                        borderWidth: 2
+                    };
+                }).filter(d => d !== null);
+            } else {
+                const p = players[selectedPlayer];
+                if (p && p.history && p.history.length > 0) {
+                    datasets = [{
+                        label: p.name,
+                        data: p.history.map(h => ({x: new Date(h.date), y: h.elo})),
+                        borderColor: getPlayerColor(selectedPlayer),
+                        backgroundColor: getPlayerColor(selectedPlayer) + '20',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 3
+                    }];
+                }
+            }
+            
+            if (datasets.length === 0) return;
             
             chart = new Chart(ctx, {
                 type: 'line',
@@ -1155,7 +1129,7 @@
                         },
                         tooltip: {
                             callbacks: {
-                                label: ctx => `${ctx.dataset.label}: ${Math.round(ctx.parsed.y)} ELO`
+                                label: context => `${context.dataset.label}: ${Math.round(context.parsed.y)} ELO`
                             }
                         }
                     }
