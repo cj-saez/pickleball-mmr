@@ -712,6 +712,7 @@
                         if (!players[id].doublesWins) players[id].doublesWins = 0;
                         if (!players[id].doublesMatches) players[id].doublesMatches = 0;
                     });
+                    console.log('Players loaded:', players);
                     updateUI();
                 }
             });
@@ -723,6 +724,7 @@
                         matches.push(child.val());
                     });
                     matches.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    console.log('Matches loaded:', matches);
                     updateUI();
                 }
             });
@@ -1061,20 +1063,34 @@
         
         function updateChart() {
             const select = document.getElementById('chartPlayerSelect');
-            if (!select) return;
+            if (!select) {
+                console.log('Chart select not found');
+                return;
+            }
             
             const selectedPlayer = select.value;
+            console.log('Selected player for chart:', selectedPlayer);
+            console.log('Current players data:', players);
             
             const ctx = document.getElementById('eloChart');
-            if (!ctx) return;
+            if (!ctx) {
+                console.log('Chart canvas not found');
+                return;
+            }
             
-            if (chart) chart.destroy();
+            if (chart) {
+                chart.destroy();
+            }
             
             let datasets = [];
             
             if (selectedPlayer === 'all') {
                 datasets = Object.entries(players).map(([id, p]) => {
-                    if (!p.history || p.history.length === 0) return null;
+                    console.log(`Player ${id} history:`, p.history);
+                    if (!p.history || p.history.length === 0) {
+                        console.log(`No history for ${id}`);
+                        return null;
+                    }
                     return {
                         label: p.name,
                         data: p.history.map(h => ({x: new Date(h.date), y: h.elo})),
@@ -1088,6 +1104,7 @@
             } else {
                 const p = players[selectedPlayer];
                 if (p && p.history && p.history.length > 0) {
+                    console.log(`Chart data for ${selectedPlayer}:`, p.history);
                     datasets = [{
                         label: p.name,
                         data: p.history.map(h => ({x: new Date(h.date), y: h.elo})),
@@ -1100,41 +1117,51 @@
                 }
             }
             
-            if (datasets.length === 0) return;
+            console.log('Chart datasets:', datasets);
             
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: { datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { 
-                            type: 'time', 
-                            time: { unit: 'day' },
-                            ticks: { color: isDarkMode ? '#c0c0c0' : '#666' },
-                            grid: { color: isDarkMode ? '#444' : '#ddd' }
+            if (datasets.length === 0) {
+                console.log('No datasets to display');
+                return;
+            }
+            
+            try {
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: { datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { 
+                                type: 'time', 
+                                time: { unit: 'day' },
+                                ticks: { color: isDarkMode ? '#c0c0c0' : '#666' },
+                                grid: { color: isDarkMode ? '#444' : '#ddd' }
+                            },
+                            y: { 
+                                beginAtZero: false, 
+                                title: { display: true, text: 'ELO Rating', color: isDarkMode ? '#c0c0c0' : '#666' },
+                                ticks: { color: isDarkMode ? '#c0c0c0' : '#666' },
+                                grid: { color: isDarkMode ? '#444' : '#ddd' }
+                            }
                         },
-                        y: { 
-                            beginAtZero: false, 
-                            title: { display: true, text: 'ELO Rating', color: isDarkMode ? '#c0c0c0' : '#666' },
-                            ticks: { color: isDarkMode ? '#c0c0c0' : '#666' },
-                            grid: { color: isDarkMode ? '#444' : '#ddd' }
-                        }
-                    },
-                    plugins: {
-                        legend: { 
-                            position: 'top',
-                            labels: { color: isDarkMode ? '#c0c0c0' : '#666' }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: context => `${context.dataset.label}: ${Math.round(context.parsed.y)} ELO`
+                        plugins: {
+                            legend: { 
+                                position: 'top',
+                                labels: { color: isDarkMode ? '#c0c0c0' : '#666' }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: context => `${context.dataset.label}: ${Math.round(context.parsed.y)} ELO`
+                                }
                             }
                         }
                     }
-                }
-            });
+                });
+                console.log('Chart created successfully');
+            } catch (error) {
+                console.error('Error creating chart:', error);
+            }
         }
         
         function getPlayerColor(id) {
