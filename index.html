@@ -115,7 +115,7 @@
             color: #c0c0c0;
         }
         
-        input, select, textarea {
+        input, select {
             width: 100%;
             padding: 10px;
             border: 2px solid #ddd;
@@ -127,19 +127,13 @@
             color: #333;
         }
         
-        .dark-mode input, .dark-mode select, .dark-mode textarea {
+        .dark-mode input, .dark-mode select {
             background: #1a1a2e;
             color: #e0e0e0;
             border-color: #444;
         }
         
-        textarea {
-            min-height: 60px;
-            font-family: inherit;
-            font-size: 14px;
-        }
-        
-        input:focus, select:focus, textarea:focus {
+        input:focus, select:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -161,10 +155,6 @@
         button:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-        
-        button.secondary {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
         
         .leaderboard-item {
@@ -403,43 +393,6 @@
             font-size: 14px;
         }
         
-        .trash-talk-section {
-            margin-top: 20px;
-        }
-        
-        .trash-talk-item {
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            border-left: 4px solid #ff6b6b;
-        }
-        
-        .dark-mode .trash-talk-item {
-            background: #1a1a2e;
-        }
-        
-        .trash-talk-author {
-            font-weight: 600;
-            color: #764ba2;
-            margin-bottom: 5px;
-        }
-        
-        .trash-talk-text {
-            font-style: italic;
-            color: #555;
-        }
-        
-        .dark-mode .trash-talk-text {
-            color: #c0c0c0;
-        }
-        
-        .trash-talk-date {
-            font-size: 11px;
-            color: #999;
-            margin-top: 5px;
-        }
-        
         .modal {
             display: none;
             position: fixed;
@@ -615,19 +568,6 @@
                     <button type="submit">Record Match</button>
                 </form>
                 
-                <div class="trash-talk-section">
-                    <h3 style="color: #667eea; margin-bottom: 10px;">💬 Trash Talk</h3>
-                    <select id="trashTalkAuthor" style="margin-bottom: 10px;">
-                        <option value="cj">CJ</option>
-                        <option value="henry">Henry</option>
-                        <option value="ayaan">Ayaan</option>
-                        <option value="zach">Zach</option>
-                    </select>
-                    <textarea id="trashTalkInput" placeholder="Drop some trash talk..."></textarea>
-                    <button onclick="addTrashTalk()" style="background: #ff6b6b;">Post Trash Talk 🔥</button>
-                    <div id="trashTalkList" style="margin-top: 15px; max-height: 200px; overflow-y: auto;"></div>
-                </div>
-                
                 <div class="formula-card">
                     <strong>Enhanced ELO Formula:</strong><br>
                     ΔR = K(t) · [S - E(R)] · M(score) · W · ln(1 + |ΔR|/400)<br>
@@ -642,12 +582,6 @@
             </div>
             
             <div class="card">
-                <div class="mvp-card" id="mvpCard">
-                    <h3>🏆 WEEKLY MVP</h3>
-                    <div class="mvp-name" id="mvpName">-</div>
-                    <div class="mvp-stats" id="mvpStats">No matches this week</div>
-                </div>
-                
                 <h2>Leaderboard</h2>
                 <div id="leaderboard"></div>
             </div>
@@ -714,11 +648,10 @@
         
         let players = {};
         let matches = [];
-        let trashTalk = [];
         let chart;
         let isDarkMode = false;
         
-        // Modal functions - define early so onclick works
+        // Modal functions
         function closeProfileModal() {
             document.getElementById('profileModal').classList.remove('active');
         }
@@ -733,7 +666,6 @@
         }
         
         function addNewPlayer(playerId, playerName, startingElo) {
-            // Check if player already exists
             if (players[playerId]) {
                 alert('A player with this ID already exists!');
                 return;
@@ -755,18 +687,15 @@
                 recentForm: []
             };
             
-            // Add to Firebase
             database.ref('players/' + playerId).set(newPlayer).then(() => {
                 alert(`${playerName} added successfully! 🎉`);
                 closeAddPlayerModal();
-                // Refresh dropdowns
                 setTimeout(() => populateSelects(), 500);
             }).catch(error => {
                 alert('Error adding player: ' + error.message);
             });
         }
         
-        // Initialize default players if none exist
         function initializePlayers() {
             const defaultPlayers = {
                 cj: { name: 'CJ', elo: 800, matches: 0, wins: 0, losses: 0, streak: 0, singlesWins: 0, singlesMatches: 0, doublesWins: 0, doublesMatches: 0, history: [{date: new Date().toISOString(), elo: 800}], lastActive: new Date().toISOString(), recentForm: [] },
@@ -782,7 +711,6 @@
             });
         }
         
-        // Load data from Firebase
         function loadData() {
             document.getElementById('statusBadge').textContent = '✅ Connected';
             document.getElementById('statusBadge').style.background = '#28a745';
@@ -790,7 +718,6 @@
             database.ref('players').on('value', snapshot => {
                 if (snapshot.exists()) {
                     players = snapshot.val();
-                    // Ensure all players have required fields
                     Object.keys(players).forEach(id => {
                         if (!players[id].recentForm) players[id].recentForm = [];
                         if (!players[id].history) players[id].history = [{date: new Date().toISOString(), elo: players[id].elo}];
@@ -813,17 +740,6 @@
                     updateUI();
                 }
             });
-            
-            database.ref('trashTalk').on('value', snapshot => {
-                trashTalk = [];
-                if (snapshot.exists()) {
-                    snapshot.forEach(child => {
-                        trashTalk.push(child.val());
-                    });
-                    trashTalk.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    updateTrashTalk();
-                }
-            });
         }
         
         function toggleDarkMode() {
@@ -831,38 +747,6 @@
             document.body.classList.toggle('dark-mode');
             document.querySelector('.dark-mode-toggle').textContent = isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode';
             if (chart) updateChart();
-        }
-        
-        function addTrashTalk() {
-            const text = document.getElementById('trashTalkInput').value.trim();
-            const author = document.getElementById('trashTalkAuthor').value;
-            
-            if (!text) {
-                alert('Please enter some trash talk!');
-                return;
-            }
-            
-            const newTrashTalk = {
-                author: players[author].name,
-                text: text,
-                date: new Date().toISOString()
-            };
-            
-            database.ref('trashTalk').push(newTrashTalk);
-            document.getElementById('trashTalkInput').value = '';
-        }
-        
-        function updateTrashTalk() {
-            const html = trashTalk.slice(0, 10).map(t => {
-                const date = new Date(t.date);
-                return `
-                <div class="trash-talk-item">
-                    <div class="trash-talk-author">${t.author}</div>
-                    <div class="trash-talk-text">"${t.text}"</div>
-                    <div class="trash-talk-date">${date.toLocaleDateString()} ${date.toLocaleTimeString()}</div>
-                </div>
-            `}).join('');
-            document.getElementById('trashTalkList').innerHTML = html || '<p style="color: #999; font-size: 13px;">No trash talk yet. Be the first!</p>';
         }
         
         function getTier(elo) {
@@ -968,8 +852,6 @@
             const score = parseScore(scoreStr);
             if (!score) return 1;
             const margin = Math.abs(score.winner - score.loser);
-            // Bigger margins give more ELO (blowouts should matter)
-            // But cap it so it's not too extreme
             return 1 + Math.min(margin / 15, 0.5);
         }
         
@@ -977,17 +859,11 @@
             const K = getKFactor(winnerMatches);
             const expected = expectedScore(winnerElo, loserElo);
             
-            // Base change - as you get higher rated vs opponent, you gain less
             let change = K * (1 - expected);
-            
-            // Margin multiplier - bigger wins = more points
             const marginMult = getMarginMultiplier(scoreStr);
             change *= marginMult;
-            
-            // Add streak bonus
             change += streakBonus(winnerStreak);
             
-            // Doubles worth half
             if (isDoubles) {
                 change *= 0.5;
             }
@@ -1043,10 +919,8 @@
         }
         
         function recordMatch(winners, losers, score, isDoubles) {
-            // Create a deep copy of players to modify
             const updatedPlayers = JSON.parse(JSON.stringify(players));
             
-            // Ensure all players have required arrays
             [...winners, ...losers].forEach(p => {
                 if (!updatedPlayers[p].recentForm) updatedPlayers[p].recentForm = [];
                 if (!updatedPlayers[p].history) updatedPlayers[p].history = [];
@@ -1065,7 +939,6 @@
             
             const now = new Date().toISOString();
             
-            // Update winners
             winners.forEach(p => {
                 updatedPlayers[p].elo += change;
                 updatedPlayers[p].wins++;
@@ -1085,7 +958,6 @@
                 }
             });
             
-            // Update losers
             losers.forEach(p => {
                 updatedPlayers[p].elo = Math.max(0, updatedPlayers[p].elo - change);
                 updatedPlayers[p].losses++;
@@ -1103,9 +975,7 @@
                 }
             });
             
-            // Save to Firebase - update players first
             database.ref('players').set(updatedPlayers).then(() => {
-                // Then add match
                 const newMatch = {
                     date: now,
                     winners: winners.map(p => updatedPlayers[p].name),
@@ -1212,7 +1082,6 @@
             document.getElementById('profileModal').classList.add('active');
         }
         
-        // Add player form handler
         document.addEventListener('DOMContentLoaded', () => {
             const addPlayerForm = document.getElementById('addPlayerForm');
             if (addPlayerForm) {
@@ -1352,11 +1221,9 @@
             document.getElementById('predictionBox').style.display = 'none';
         });
         
-        // Initialize
         initializePlayers();
         loadData();
         
-        // Wait for players to load before populating selects
         setTimeout(() => {
             if (Object.keys(players).length > 0) {
                 populateSelects();
