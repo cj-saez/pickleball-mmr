@@ -20,10 +20,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
-            transition: background 0.3s, color 0.3s;
         }
-        
-        
         
         .container {
             max-width: 1600px;
@@ -42,8 +39,6 @@
             font-size: 2.5em;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
-        
-        
         
         .status-badge {
             background: #28a745;
@@ -66,10 +61,7 @@
             border-radius: 15px;
             padding: 25px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            transition: background 0.3s, color 0.3s;
         }
-        
-        
         
         .card h2 {
             margin-bottom: 20px;
@@ -77,8 +69,6 @@
             border-bottom: 3px solid #667eea;
             padding-bottom: 10px;
         }
-        
-     
         
         .form-group {
             margin-bottom: 15px;
@@ -91,8 +81,6 @@
             color: #333;
         }
         
-       
-        
         input, select {
             width: 100%;
             padding: 10px;
@@ -104,7 +92,6 @@
             background: white;
             color: #333;
         }
-        
         
         input:focus, select:focus {
             outline: none;
@@ -141,7 +128,6 @@
             position: relative;
         }
         
-        
         .leaderboard-item:hover {
             transform: translateX(5px);
             cursor: pointer;
@@ -169,15 +155,11 @@
             flex-wrap: wrap;
         }
         
-        
-        
         .player-stats {
             font-size: 12px;
             color: #666;
             margin-top: 3px;
         }
-        
-       
         
         .elo {
             font-size: 28px;
@@ -185,8 +167,6 @@
             color: #764ba2;
             margin-right: 15px;
         }
-        
-        
         
         .tier-badge {
             padding: 4px 10px;
@@ -228,8 +208,6 @@
             font-size: 14px;
         }
         
-      
-        
         .winner {
             color: #28a745;
             font-weight: 600;
@@ -261,8 +239,6 @@
             border-left: 4px solid #764ba2;
         }
         
-       
-        
         .info-box {
             background: #d1ecf1;
             border-left: 4px solid #17a2b8;
@@ -273,13 +249,9 @@
             line-height: 1.6;
         }
         
-        
-        
         .info-box strong {
             color: #0c5460;
         }
-        
-        
         
         .player-selector {
             margin-bottom: 15px;
@@ -300,23 +272,17 @@
             margin-top: 15px;
         }
         
-       
-        
         .prediction-box h4 {
             color: #00796b;
             margin-bottom: 10px;
             font-size: 14px;
         }
         
-       
-        
         .prediction-text {
             font-size: 16px;
             font-weight: 600;
             color: #004d40;
         }
-        
-        
         
         .win-prob {
             display: flex;
@@ -352,14 +318,10 @@
             overflow-y: auto;
         }
         
-        
-        
         .modal-content h3 {
             margin-bottom: 15px;
             color: #667eea;
         }
-        
-       
         
         .close-modal {
             background: #dc3545;
@@ -395,8 +357,6 @@
             color: #333;
         }
         
-       
-        
         .stat-row {
             display: flex;
             justify-content: space-between;
@@ -405,8 +365,6 @@
             margin-bottom: 5px;
             border-radius: 5px;
         }
-        
-       
         
         @media (max-width: 768px) {
             .grid {
@@ -431,7 +389,6 @@
                 <h1>🏓 Pickleball Friday Rankings 🏓</h1>
                 <span class="status-badge" id="statusBadge">🔄 Connecting...</span>
             </div>
-            
         </div>
         
         <div class="grid">
@@ -572,7 +529,6 @@
         let matches = [];
         let chart;
         
-        
         function closeProfileModal() {
             document.getElementById('profileModal').classList.remove('active');
         }
@@ -647,6 +603,7 @@
                         if (!players[id].doublesWins) players[id].doublesWins = 0;
                         if (!players[id].doublesMatches) players[id].doublesMatches = 0;
                     });
+                    populateSelects(); // Add this line
                     updateUI();
                 }
             });
@@ -663,8 +620,12 @@
             });
         }
         
-
-        
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode');
+            document.querySelector('.dark-mode-toggle').textContent = isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode';
+            if (chart) updateChart();
+        }
         
         function getTier(elo) {
             if (elo >= 1200) return { name: 'Master', class: 'tier-master' };
@@ -1050,36 +1011,36 @@
                                 }
                             },
                             ticks: { 
-                               
+                                color: '#666',
                                 maxRotation: 45,
                                 minRotation: 45
                             },
                             grid: { 
-                               
+                                color: '#e0e0e0',
                                 drawBorder: false
                             },
                             title: {
                                 display: true,
                                 text: 'Date',
-                               
+                                color: '#666'
                             }
                         },
                         y: { 
                             beginAtZero: false,
                             ticks: { 
-                               
+                                color: '#666',
                                 callback: function(value) {
                                     return Math.round(value);
                                 }
                             },
                             grid: { 
-                               
+                                color: '#e0e0e0',
                                 drawBorder: false
                             },
                             title: { 
                                 display: true, 
                                 text: 'ELO Rating', 
-                                
+                                color: '#666',
                                 font: {
                                     size: 14,
                                     weight: 'bold'
@@ -1091,7 +1052,7 @@
                         legend: { 
                             position: 'top',
                             labels: { 
-                               
+                                color: '#666',
                                 padding: 15,
                                 font: {
                                     size: 13
@@ -1099,8 +1060,8 @@
                             }
                         },
                         tooltip: {
-                            backgroundColor:  'white',
-                            titleColor:'#333',
+                            backgroundColor: 'white',
+                            titleColor: '#333',
                             bodyColor: '#666',
                             borderColor: '#ddd',
                             borderWidth: 1,
@@ -1197,12 +1158,6 @@
         
         initializePlayers();
         loadData();
-        
-        setTimeout(() => {
-            if (Object.keys(players).length > 0) {
-                populateSelects();
-            }
-        }, 1000);
     </script>
 </body>
 </html>
